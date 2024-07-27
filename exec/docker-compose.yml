@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  soma-connect:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    devices:
+      - /dev/rfkill:/dev/rfkill
+    image: localhost/soma-connect
+    container_name: soma-connect
+    network_mode: host
+    volumes:
+      - /proc/device-tree:/proc/device-tree:ro
+      - /opt/soma/Docker/data/var/soma-connect:/var/soma-connect
+      - /run/dbus:/run/dbus:ro
+      - /var/lib/bluetooth:/var/lib/bluetooth:ro
+      - /lib/modules:/lib/modules:ro
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - AUDIT_WRITE
+      - SYSLOG
+      - SYS_RAWIO

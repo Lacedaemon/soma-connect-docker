@@ -1,0 +1,1 @@
+cmd_/opt/soma/Docker/spoof_device_model/modules.order := {   echo /opt/soma/Docker/spoof_device_model/spoof_device_model.ko; :; } | awk '!x[$$0]++' - > /opt/soma/Docker/spoof_device_model/modules.order

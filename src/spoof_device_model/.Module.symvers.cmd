@@ -1,0 +1,1 @@
+cmd_/opt/soma/Docker/spoof_device_model/Module.symvers := sed 's/\.ko$$/\.o/' /opt/soma/Docker/spoof_device_model/modules.order | scripts/mod/modpost -m -a  -o /opt/soma/Docker/spoof_device_model/Module.symvers -e -i Module.symvers   -T -

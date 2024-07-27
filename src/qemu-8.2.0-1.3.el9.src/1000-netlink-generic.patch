@@ -1,0 +1,125 @@
+From: Nathan Aragones <nathan.aragones@icloud.com>
+Date: Sun, Jun 9 2024 03:40:00
+Subject: [PATCH] include/ui/rect.h: fix qemu_rect_init() mis-assignment
+
+---
+
+diff -Naur a/linux-user/fd-trans.c b/linux-user/fd-trans.c
+--- a/linux-user/fd-trans.c	2023-12-19 13:24:34.000000000 -0800
++++ b/linux-user/fd-trans.c	2024-06-09 02:48:42.562369334 -0700
+@@ -1545,6 +1545,47 @@
+     return target_to_host_for_each_nlmsg(nlh, len, target_to_host_data_audit);
+ }
+ 
++static abi_long host_to_target_data_generic(struct nlmsghdr *nlh)
++{
++/*
++    switch (nlh->nlmsg_type) {
++    default:
++        qemu_log_mask(LOG_UNIMP, "Unknown host audit message type %d\n",
++                      nlh->nlmsg_type);
++        return -TARGET_EINVAL;
++    }
++*/
++    return 0;
++}
++
++static inline abi_long host_to_target_nlmsg_generic(struct nlmsghdr *nlh,
++                                                  size_t len)
++{
++    return host_to_target_for_each_nlmsg(nlh, len, host_to_target_data_generic);
++}
++
++static abi_long target_to_host_data_generic(struct nlmsghdr *nlh)
++{
++/*
++    switch (nlh->nlmsg_type) {
++    case AUDIT_USER:
++    case AUDIT_FIRST_USER_MSG ... AUDIT_LAST_USER_MSG:
++    case AUDIT_FIRST_USER_MSG2 ... AUDIT_LAST_USER_MSG2:
++        break;
++    default:
++        qemu_log_mask(LOG_UNIMP, "Unknown target audit message type %d\n",
++                      nlh->nlmsg_type);
++        return -TARGET_EINVAL;
++    }
++*/
++    return 0;
++}
++
++static abi_long target_to_host_nlmsg_generic(struct nlmsghdr *nlh, size_t len)
++{
++    return target_to_host_for_each_nlmsg(nlh, len, target_to_host_data_generic);
++}
++
+ static abi_long packet_target_to_host_sockaddr(void *host_addr,
+                                                abi_ulong target_addr,
+                                                socklen_t len)
+@@ -1629,6 +1670,35 @@
+     .host_to_target_data = netlink_audit_host_to_target,
+ };
+ 
++static abi_long netlink_generic_target_to_host(void *buf, size_t len)
++{
++    abi_long ret;
++
++    ret = target_to_host_nlmsg_generic(buf, len);
++    if (ret < 0) {
++        return ret;
++    }
++
++    return len;
++}
++
++static abi_long netlink_generic_host_to_target(void *buf, size_t len)
++{
++    abi_long ret;
++
++    ret = host_to_target_nlmsg_generic(buf, len);
++    if (ret < 0) {
++        return ret;
++    }
++
++    return len;
++}
++
++TargetFdTrans target_netlink_generic_trans = {
++    .target_to_host_data = netlink_generic_target_to_host,
++    .host_to_target_data = netlink_generic_host_to_target,
++};
++
+ /* signalfd siginfo conversion */
+ 
+ static void
+diff -Naur a/linux-user/fd-trans.h b/linux-user/fd-trans.h
+--- a/linux-user/fd-trans.h	2023-12-19 13:24:34.000000000 -0800
++++ b/linux-user/fd-trans.h	2024-06-09 02:04:37.378379425 -0700
+@@ -128,6 +128,7 @@
+ extern TargetFdTrans target_netlink_route_trans;
+ #endif
+ extern TargetFdTrans target_netlink_audit_trans;
++extern TargetFdTrans target_netlink_generic_trans;
+ extern TargetFdTrans target_signalfd_trans;
+ extern TargetFdTrans target_eventfd_trans;
+ extern TargetFdTrans target_timerfd_trans;
+diff -Naur a/linux-user/syscall.c b/linux-user/syscall.c
+--- a/linux-user/syscall.c	2023-12-19 13:24:34.000000000 -0800
++++ b/linux-user/syscall.c	2024-06-09 02:11:14.047377912 -0700
+@@ -3140,6 +3140,7 @@
+          protocol == NETLINK_ROUTE ||
+ #endif
+          protocol == NETLINK_KOBJECT_UEVENT ||
++	 protocol == NETLINK_GENERIC ||
+          protocol == NETLINK_AUDIT)) {
+         return -TARGET_EPROTONOSUPPORT;
+     }
+@@ -3170,6 +3171,9 @@
+             case NETLINK_AUDIT:
+                 fd_trans_register(ret, &target_netlink_audit_trans);
+                 break;
++	    case NETLINK_GENERIC:
++                fd_trans_register(ret, &target_netlink_generic_trans);
++                break;
+             default:
+                 g_assert_not_reached();
+             }

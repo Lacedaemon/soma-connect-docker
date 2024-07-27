@@ -1,0 +1,1 @@
+cmd_/opt/soma/Docker/spoof_device_model/spoof_device_model.mod := printf '%s\n'   spoof_device_model.o | awk '!x[$$0]++ { print("/opt/soma/Docker/spoof_device_model/"$$0) }' > /opt/soma/Docker/spoof_device_model/spoof_device_model.mod
